@@ -1,12 +1,39 @@
 #!/bin/sh
+set -eu
+alias errcho='>&2 echo'
 
-version=$(date +%Y%m%d%H%M%S)
+# cleanup
+rm -rf release_response upload_response
 
-curl -s ${GITHUB_KEY_URL} -o /tmp/github.key
-chmod 0400 /tmp/github.key
-git tag ${version}
-GIT_SSH_COMMAND='ssh -i /tmp/github.key' git push origin ${version}
+version=v0.16.8
 
-curl -s https://bin.equinox.io/c/mBWdkfai63v/release-tool-stable-linux-amd64.tgz | sudo tar xz -C /usr/local/bin
-curl -s ${EQUINOX_KEY_URL} -o /tmp/equinox.key
-equinox release --version=${version} --platforms="darwin_386 darwin_amd64 linux_386 linux_amd64 windows_386 windows_amd64" --channel=stable --signing-key=/tmp/equinox.key --app=${EQUINOX_APP} --token=${EQUINOX_TOKEN}
+release_creation_status=$(curl \
+    --header "Authorization: Bearer ${GITHUB_API_KEY}" \
+    --header "Content-Type: application/json" \
+    -w "%{http_code}\n" --output release_response -X POST -d "{
+        \"target_commitish\": \"master\",
+        \"name\": \"${version}\",
+        \"tag_name\": \"${version}\",
+        \"draft\": false,
+        \"prerelease\": false
+    }" https://api.github.com/repos/walkes/forego/releases)
+
+if [ "${release_creation_status}" -ne "201" ]; then
+    errcho "Release creation failed!"
+    cat release_response
+    exit 22
+fi
+
+release_id=$(cat release_response | jq '.id')
+echo "Created release id=${release_id}"
+upload_status=$(curl --header "Authorization: Bearer ${GITHUB_API_KEY}" \
+    --header "Content-Type: $(file -b --mime-type forego)" \
+    -w "%{http_code}\n" --output upload_response \
+    -X POST --data-binary @forego \
+    https://uploads.github.com/repos/walkes/forego/releases/${release_id}/assets?name=forego-armhf-${version})
+
+if [ "${upload_status}" -ne "201" ]; then
+    errcho "Upload failed!"
+    cat upload_response
+    exit 22
+fi
