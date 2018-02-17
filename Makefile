@@ -1,11 +1,11 @@
 BIN = forego
 SRC = $(shell ls *.go)
+OS = linux
+ARCH = amd64
 
 .PHONY: all build clean lint release test
 
 all: build
-
-build: $(BIN)
 
 clean:
 	rm -f $(BIN)
@@ -19,5 +19,5 @@ release:
 test: lint build
 	go test -v -race -cover ./...
 
-$(BIN): $(SRC)
-	go build -o $@
+build:
+	GOOS=$(OS) GOARCH=$(ARCH) go build -o $(BIN)

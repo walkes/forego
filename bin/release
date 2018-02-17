@@ -2,10 +2,12 @@
 set -eu
 alias errcho='>&2 echo'
 
-# cleanup
-rm -rf release_response upload_response
+cleanup () {
+    # cleanup
+    rm -rf release_response upload_response
+}
 
-version=v0.16.8
+version=v0.16.9
 
 release_creation_status=$(curl \
     --header "Authorization: Bearer ${GITHUB_API_KEY}" \
@@ -20,7 +22,7 @@ release_creation_status=$(curl \
 
 if [ "${release_creation_status}" -ne "201" ]; then
     errcho "Release creation failed!"
-    cat release_response
+    cat release_response && cleanup
     exit 22
 fi
 
@@ -34,6 +36,8 @@ upload_status=$(curl --header "Authorization: Bearer ${GITHUB_API_KEY}" \
 
 if [ "${upload_status}" -ne "201" ]; then
     errcho "Upload failed!"
-    cat upload_response
+    cat upload_response && cleanup
     exit 22
 fi
+
+cleanup

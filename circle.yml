@@ -9,4 +9,4 @@ deployment:
   master:
     branch: master
     commands:
-      - make forego release
+      - make build ARCH=arm release
